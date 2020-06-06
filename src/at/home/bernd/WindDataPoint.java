@@ -12,7 +12,7 @@ public class WindDataPoint
     /**
      * The type of data
      */
-    public static enum DATATYPE
+    public static enum WIND_DATA_TYPE
     {
         timestamp,
         direction,

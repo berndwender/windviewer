@@ -22,8 +22,12 @@ import org.w3c.dom.DOMImplementation;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.ElementTraversal;
+import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
-import at.home.bernd.WindDataPoint.DATATYPE;
+import at.home.bernd.TrackPoint.TRACK_DATA_TYPE;
+import at.home.bernd.WindDataPoint.WIND_DATA_TYPE;
 
 /**
  * Shows wind data as a diagram
@@ -35,6 +39,9 @@ public class WindViewer
      */
     private List<WindDataPoint> parseWindData(String url)
     {
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("HH:mm:ss dd.MM.yyyy");
+        simpleDateFormat.setTimeZone(TimeZone.getTimeZone("Europe/Vienna"));
+
         List<WindDataPoint> windList = new ArrayList<WindDataPoint>();
         try
         {
@@ -66,7 +73,7 @@ public class WindViewer
                         String text = td.getTextContent();
                         if (idx == 0)
                         {
-                            wdt.setTimestamp(parseDateString(text));
+                            wdt.setTimestamp(parseDateString(text, simpleDateFormat));
                         }
                         if (idx == 1)
                         {
@@ -104,6 +111,135 @@ public class WindViewer
     }
     
     /**
+     * Parses the track data (table in GPX format) and returns the result as a list of track data points
+     */
+    private List<Track> parseTracks(String url)
+    {
+        List<Track> trackList = new ArrayList<Track>();
+        try
+        {
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            dbf.setNamespaceAware(true);
+            dbf.setExpandEntityReferences(false);
+            DocumentBuilder db = dbf.newDocumentBuilder();
+            Document doc = db.parse(url);
+            Element documentElement = doc.getDocumentElement();
+            NodeList tracks = documentElement.getElementsByTagName("trk");
+            int nTracks = tracks.getLength();
+            for (int i = 0; i < nTracks; i++)
+            {
+                Node trackNode = tracks.item(i);
+                Track track = parseTrack(trackNode);
+                trackList.add(track);
+            }
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+        return trackList;
+    }
+
+    private Track parseTrack(Node trackNode)
+    {
+        Track track = new Track();
+        NodeList trackInfoItems = trackNode.getChildNodes();
+        for (int i = 0; i < trackInfoItems.getLength(); i++)
+        {
+            Node trackInfoItem = trackInfoItems.item(i);
+            String nodeName = trackInfoItem.getNodeName();
+            if ("name".equals(nodeName))
+            {
+                track.setName(trackInfoItem.getTextContent());
+            }
+            else if ("trkseg".equals(nodeName))
+            {
+                TrackSegment trackSegment = parseTrackSegment(trackInfoItem);
+                track.addTrackSegment(trackSegment);
+            }
+        }
+        return track;
+    }
+
+    /**
+     * Parses a single track segment.
+     * 
+     * @param trackInfoItem
+     * @return 
+     * @return the list of track points
+     */
+    private TrackSegment parseTrackSegment(Node trackInfoItem)
+    {
+        TrackSegment trackSegment = new TrackSegment();
+        NodeList trackPointNodes = trackInfoItem.getChildNodes();
+        int nTrackPoints = trackPointNodes.getLength();
+        for (int i = 0; i < nTrackPoints; i++)
+        {
+            Node trackPointNode = trackPointNodes.item(i);
+            if (trackPointNode != null && "trkpt".equals(trackPointNode.getNodeName()))
+            {
+                trackSegment.addTrackPoint(parseTrackPoint(trackPointNode));
+            }
+        }
+        return trackSegment;
+    }
+
+    /**
+     * Parses a single track point.
+     * 
+     * @param trackPointNode the track point node
+     * @return the track data point
+     */
+    private TrackPoint parseTrackPoint(Node trackPointNode)
+    {
+        SimpleDateFormat sdf1 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+        
+        TrackPoint trackDataPoint = new TrackPoint();
+        NamedNodeMap attrs = trackPointNode.getAttributes();
+        
+        Node latNode = attrs.getNamedItem("lat");
+        trackDataPoint.setLatitude(Double.parseDouble(latNode.getTextContent()));
+
+        Node lonNode = attrs.getNamedItem("lon");
+        trackDataPoint.setLongitude(Double.parseDouble(lonNode.getTextContent()));
+        
+        NodeList valNodes = trackPointNode.getChildNodes();
+        for (int i = 0; i < valNodes.getLength(); i++)
+        {
+            Node valNode = valNodes.item(i);
+            if ("ele".equals(valNode.getNodeName()))
+            {
+                trackDataPoint.setElevation(Double.parseDouble(valNode.getTextContent()));
+            }
+            else if ("time".equals(valNode.getNodeName()))
+            {
+                String dateString = valNode.getTextContent();
+                Date timeStamp = null;
+                if (dateString.length() <= 20)
+                {
+                    timeStamp = parseDateString(dateString, sdf1);
+                }
+                else
+                {
+                    timeStamp = parseDateString(dateString, sdf2);
+                }
+                trackDataPoint.setTimestamp(timeStamp);
+            }
+            else if ("course".equals(valNode.getNodeName()))
+            {
+                trackDataPoint.setCourse(Double.parseDouble(valNode.getTextContent()));
+            }
+            else if ("speed".equals(valNode.getNodeName()))
+            {
+                double speedInMetersPerSeconds = Double.parseDouble(valNode.getTextContent());
+                trackDataPoint.setSpeed(speedInMetersPerSeconds * 3.6);
+            }
+        }
+        return trackDataPoint;
+    }
+    
+    /**
      * Prints the wind data.
      * 
      * @param windData the list of wind data points
@@ -116,6 +252,11 @@ public class WindViewer
         }
     }
     
+    /**
+     * Makes an array of x data for the chart
+     * @param windList
+     * @return
+     */
     public List<Date> makeXData(List<WindDataPoint> windList)
     {
         List<Date> xData = new ArrayList<Date>();
@@ -127,32 +268,72 @@ public class WindViewer
     }
     
     /**
+     * Makes an array of x data for the chart
+     * @param windList
+     * @return
+     */
+    public List<Date> makeXData(TrackSegment trackSegment)
+    {
+        List<Date> xData = new ArrayList<Date>();
+        for (TrackPoint tp : trackSegment.getTrackPoints())
+        {
+            xData.add(tp.getTimestamp());
+        }
+        return xData;
+    }
+    
+    /**
      * Makes an array of y data.
      * 
      * @param windList
      * @param the type of data
      * @return
      */
-    public List<Number> makeYData(List<WindDataPoint> windList, DATATYPE dataType)
+    public List<Number> makeYData(List<WindDataPoint> windList, WIND_DATA_TYPE dataType)
     {
         List<Number> yData = new ArrayList<Number>();
         for (int i = 0; i < windList.size(); i++)
         {
-            if (dataType == DATATYPE.windSpeed)
+            if (dataType == WIND_DATA_TYPE.windSpeed)
             {
                 yData.add(windList.get(i).getWindSpeed());
             }
-            else if (dataType == DATATYPE.maxWindSpeed)
+            else if (dataType == WIND_DATA_TYPE.maxWindSpeed)
             {
                 yData.add(windList.get(i).getMaxWindSpeed());
             }
-            else if (dataType == DATATYPE.temperature)
+            else if (dataType == WIND_DATA_TYPE.temperature)
             {
                 yData.add(windList.get(i).getTemperature());
             }
-            else if (dataType == DATATYPE.chill)
+            else if (dataType == WIND_DATA_TYPE.chill)
             {
                 yData.add(windList.get(i).getChill());
+            }
+        }
+        return yData;
+    }
+    
+    /**
+     * Makes an array of y data.
+     * 
+     * @param windList
+     * @param the type of data
+     * @return
+     */
+    public List<Number> makeYData(TrackSegment trackSegment, TRACK_DATA_TYPE dataType)
+    {
+        List<Number> yData = new ArrayList<Number>();
+        List<TrackPoint> trackPoints = trackSegment.getTrackPoints();
+        for (int i = 0; i < trackPoints.size(); i++)
+        {
+            if (dataType == TRACK_DATA_TYPE.speed)
+            {
+                yData.add(trackPoints.get(i).getSpeed());
+            }
+            else if (dataType == TRACK_DATA_TYPE.course)
+            {
+                yData.add(trackPoints.get(i).getCourse());
             }
         }
         return yData;
@@ -174,8 +355,8 @@ public class WindViewer
         
         XYChart windChart = windChartBuilder.build();
         List<Date> xData = makeXData(windList);
-        windChart.addSeries("Wind Speed", xData, makeYData(windList, DATATYPE.windSpeed));
-        windChart.addSeries("Max Wind Speed", xData, makeYData(windList, DATATYPE.maxWindSpeed));
+        windChart.addSeries("Wind Speed", xData, makeYData(windList, WIND_DATA_TYPE.windSpeed));
+        windChart.addSeries("Max Wind Speed", xData, makeYData(windList, WIND_DATA_TYPE.maxWindSpeed));
         XYStyler styler = windChart.getStyler();
         styler.setLegendPosition(LegendPosition.OutsideS);
         styler.setHasAnnotations(false);
@@ -189,8 +370,8 @@ public class WindViewer
 
         
         XYChart temperatureChart = temperatureChartBuilder.build();
-        temperatureChart.addSeries("Temperature", xData, makeYData(windList, DATATYPE.temperature));
-        temperatureChart.addSeries("Chill", xData, makeYData(windList, DATATYPE.chill));
+        temperatureChart.addSeries("Temperature", xData, makeYData(windList, WIND_DATA_TYPE.temperature));
+        temperatureChart.addSeries("Chill", xData, makeYData(windList, WIND_DATA_TYPE.chill));
         styler = temperatureChart.getStyler();
         styler.setLegendPosition(LegendPosition.OutsideS);
         styler.setHasAnnotations(false);
@@ -203,20 +384,62 @@ public class WindViewer
     }
     
     /**
+     * Makes a speed chart.
+     * 
+     * @param windList the wind list
+     */
+    public void makeCharts(TrackSegment trackSegment)
+    {
+        XYChartBuilder speedChartBuilder = new XYChartBuilder();
+        speedChartBuilder.width(1600);
+        speedChartBuilder.height(400);
+        speedChartBuilder.title("Speed");
+        speedChartBuilder.xAxisTitle("time");
+        speedChartBuilder.yAxisTitle("km / h");
+        
+        XYChart speedChart = speedChartBuilder.build();
+        List<Date> xData = makeXData(trackSegment);
+        List<Number> speedData = makeYData(trackSegment, TRACK_DATA_TYPE.speed);
+        speedChart.addSeries("Speed", xData, speedData);
+        XYStyler speedChartStyler = speedChart.getStyler();
+        speedChartStyler.setLegendPosition(LegendPosition.OutsideS);
+        speedChartStyler.setHasAnnotations(false);
+        
+        XYChartBuilder courseChartBuilder = new XYChartBuilder();
+        courseChartBuilder.width(1600);
+        courseChartBuilder.height(400);
+        courseChartBuilder.title("Course");
+        courseChartBuilder.xAxisTitle("time");
+        courseChartBuilder.yAxisTitle("Direction");
+        
+        XYChart courseChart = courseChartBuilder.build();
+        List<Number> courseData = makeYData(trackSegment, TRACK_DATA_TYPE.course);
+        courseChart.addSeries("Course", xData, courseData);
+        XYStyler courseChartStyler = courseChart.getStyler();
+        courseChartStyler.setLegendPosition(LegendPosition.OutsideS);
+        courseChartStyler.setHasAnnotations(false);
+        
+        SwingWrapper<XYChart> swingWrapper = new SwingWrapper<XYChart>(speedChart);
+        swingWrapper.displayChart();
+        
+        swingWrapper = new SwingWrapper<XYChart>(courseChart);
+        swingWrapper.displayChart();
+    }
+    
+    /**
      * Parses a timestamp and returns its value as a Date.
      * 
      * @param timeStamp the timestamp
      * @return the timestamp as Date
      */
-    private Date parseDateString(String timeStamp)
+    private Date parseDateString(String timeStamp, SimpleDateFormat simpleDateFormat)
     {
         Date date = null;
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss dd.MM.yyyy");
-        sdf.setTimeZone(TimeZone.getTimeZone("Europe/Vienna"));
         try
         {
-            date = sdf.parse(timeStamp);
-        } catch (ParseException e)
+            date = simpleDateFormat.parse(timeStamp);
+        }
+        catch (ParseException e)
         {
             e.printStackTrace();
         }
@@ -283,23 +506,180 @@ public class WindViewer
     }
     
     /**
+     * Returns a sublist of track data from a given timestamp to a given timestamp.
+     * 
+     * @param trackData the original list
+     * @param from the "from" timestamp
+     * @param to the "to" timestamp
+     * @return the sublist
+     */
+    List<TrackPoint> getTrackData(List<TrackPoint> trackData, Date from, Date to)
+    {
+        List<TrackPoint> result = new ArrayList<TrackPoint>();
+        for (TrackPoint tp : trackData)
+        {
+            Date ts = tp.getTimestamp();
+            if (from.before(ts) && to.after(ts))
+            {
+                result.add(tp);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Displays the weather charts based on weather data from the given URL.
+     * 
+     * @param url the URL pointing to the data source
+     */
+    private void displayWeatherCharts(String url)
+    {
+        displayWeatherCharts(url, (Date) null, (Date) null);
+    }
+    
+    /**
+     * Displays live weather charts (i.e. from n hours back to now).
+     * 
+     * @param url the URL pointing to the data source
+     * @param nHoursBack from date is n hours back from now
+     */
+    private void displayLiveWeatherCharts(String url, int nHoursBack)
+    {
+        GregorianCalendar fromDate = new GregorianCalendar();
+        fromDate.add(Calendar.HOUR, -3);
+        GregorianCalendar toDate = new GregorianCalendar();
+        displayWeatherCharts(url, fromDate.getTime(), toDate.getTime());
+    }
+    
+    /**
+     * Displays the weather charts based on weather data from the given URL.
+     * 
+     * @param url  the URL pointing to the data source
+     * @param from the "from" timestamp
+     * @param to   the "to" timestamp
+     */
+    private void displayWeatherCharts(String url, String from, String to)
+    {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+        try
+        {
+            Date fromTimeStamp = sdf.parse(from);
+            Date toTimeStamp = sdf.parse(to);
+            displayWeatherCharts(url, fromTimeStamp, toTimeStamp);
+        }
+        catch (ParseException e)
+        {
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Displays the weather charts based on weather data from the given URL.
+     * 
+     * @param url  the URL pointing to the data source
+     * @param from the "from" timestamp
+     * @param to   the "to" timestamp
+     */
+    private void displayWeatherCharts(String url, Date from, Date to)
+    {
+        List<WindDataPoint> windData = parseWindData(url);
+        if (from == null || to == null)
+        {
+            makeCharts(windData);
+        }
+        else
+        {
+            List<WindDataPoint> filteredWindData = this.getWindData(windData, from, to);
+            if (filteredWindData.size() > 0)
+            {
+                makeCharts(filteredWindData);
+            }
+        }
+    }
+
+    /**
+     * Displays speed charts based on track data from the given URL.
+     * 
+     * @param url  the URL pointing to the data source
+     */
+    private void displaySpeedCharts(String url)
+    {
+        displaySpeedCharts(url, (Date) null, (Date) null);
+    }
+    
+    /**
+     * Displays speed charts based on track data from the given URL.
+     * 
+     * @param url  the URL pointing to the data source
+     * @param from the "from" timestamp in ISO format (GMT)
+     * @param to   the "to" timestamp in ISO format (GMT)
+     */
+    private void displaySpeedCharts(String url, String from, String to)
+    {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+        try
+        {
+            Date fromTimeStamp = sdf.parse(from);
+            Date toTimeStamp = sdf.parse(to);
+            displaySpeedCharts(url, fromTimeStamp, toTimeStamp);
+        }
+        catch (ParseException e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+    
+    /**
+     * Displays a speed chart based on track data from the given URL.
+     * 
+     * @param url  the URL pointing to the data source
+     * @param from the "from" timestamp
+     * @param to   the "to" timestamp
+     */
+    private void displaySpeedCharts(String url, Date from, Date to)
+    {
+        List<Track> trackList = parseTracks(url);
+        for (Track track : trackList)
+        {
+            List<TrackSegment> trackSegments = track.getTrackSegments();
+            for (TrackSegment trackSegment : trackSegments)
+            {
+                List<TrackPoint> trackPoints = trackSegment.getTrackPoints();
+                if (from == null || to == null)
+                {
+                    makeCharts(trackSegment);
+                }
+                else
+                {
+                    List<TrackPoint> filteredTrackPoints = getTrackData(trackPoints, from, to);
+                    if (filteredTrackPoints.size() > 0)
+                    {
+                        TrackSegment filteredTrackSegment = new TrackSegment();
+                        filteredTrackSegment.setTrackPoints(filteredTrackPoints);
+                        makeCharts(filteredTrackSegment);
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
      * Starts the wind viewer
      */
     public static void main(String[] args)
     {
         WindViewer windViewer = new WindViewer();
-        // String url = "file:///d|/bernd/projects/WindViewer/data/wind.xml";
-        String url = "http://212.232.26.104/";
-        List<WindDataPoint> windData = windViewer.parseWindData(url);
-        
-        // windViewer.printWindData(windData);
-        
-        GregorianCalendar fromDate = new GregorianCalendar();
-        fromDate.add(Calendar.HOUR, -3);
-        
-        GregorianCalendar toDate = new GregorianCalendar();
-        windData = windViewer.getWindData(windData, fromDate.getTime(), toDate.getTime());
-        windViewer.makeCharts(windData);
+        // windViewer.displayWeatherCharts("file:///d|/bernd/projects/WindViewer/data/wind.xml");
+        // windViewer.displayWeatherCharts("http://212.232.26.104/");
+
+        String gpxUrl = "file:///d|/bernd/projects/WindViewer/data/location_2020-06-01.gpx";
+        String weatherUrl = "file:///d|/bernd/projects/WindViewer/data/wind_2020-06-01.xml";
+        String from = "2020-06-01T16:00:00";
+        String to =   "2020-06-01T16:03:01";
+        // windViewer.displaySpeedCharts(url);
+        windViewer.displaySpeedCharts(gpxUrl, from, to);
+        windViewer.displayWeatherCharts(weatherUrl, from, to);
         
         /*
         Date timeStamp = windViewer.parseDateString("11:42:00 30.05.2020");
