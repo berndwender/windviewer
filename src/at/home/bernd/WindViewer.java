@@ -665,14 +665,53 @@ public class WindViewer
     }
     
     /**
+     * Displays a speed chart based on track data from the given URL.
+     * 
+     * @param url            the URL pointing to the data source
+     * @param speedThreshold the speed of all points of a subsegment must be greater than this threshold
+     * @param minPoints      the minimum number of points of a subsegment
+     * @return               the number of segments to be displayed
+     */
+    private int displaySpeedCharts(String url, double speedThreshold, int minPoints)
+    {
+        int nSegments = 0;
+        List<Track> trackList = parseTracks(url);
+        for (Track track : trackList)
+        {
+            List<TrackSegment> trackSegments = track.getTrackSegments();
+            for (TrackSegment trackSegment : trackSegments)
+            {
+                List<TrackSegment> extractedTrackSegments = trackSegment.extractByTopSpeed(speedThreshold, minPoints);
+                for (TrackSegment extractedTrackSegment : extractedTrackSegments)
+                {
+                    nSegments++;
+                    makeCharts(extractedTrackSegment);
+                }
+            }
+        }
+        return nSegments;
+    }
+    
+    /**
      * Starts the wind viewer
      */
     public static void main(String[] args)
     {
         WindViewer windViewer = new WindViewer();
         // windViewer.displayWeatherCharts("file:///d|/bernd/projects/WindViewer/data/wind.xml");
+
         // windViewer.displayWeatherCharts("http://212.232.26.104/");
 
+        // String weatherUrl = "file:///H|/bwender/windsurfing/windData_2020-06-08.htm";
+        // windViewer.displayWeatherCharts(weatherUrl);
+        
+        String gpxUrl = "file:///H|/bwender/windsurfing/bernd.wender_168605310_20200607_224206.gpx";
+        double speedThreshold = 50.0;
+        int minPoints = 50;
+        int nSegments = windViewer.displaySpeedCharts(gpxUrl, 52.0, 50);
+        System.out.println("Found " + nSegments + " matching segments for speed threshold = " + speedThreshold + ", min. points = " + minPoints);
+
+        /*
         String gpxUrl = "file:///d|/bernd/projects/WindViewer/data/location_2020-06-01.gpx";
         String weatherUrl = "file:///d|/bernd/projects/WindViewer/data/wind_2020-06-01.xml";
         String from = "2020-06-01T16:00:00";
@@ -680,6 +719,7 @@ public class WindViewer
         // windViewer.displaySpeedCharts(url);
         windViewer.displaySpeedCharts(gpxUrl, from, to);
         windViewer.displayWeatherCharts(weatherUrl, from, to);
+        */
         
         /*
         Date timeStamp = windViewer.parseDateString("11:42:00 30.05.2020");
