@@ -13,6 +13,8 @@ import java.util.TimeZone;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
+import org.apache.commons.math3.analysis.interpolation.SplineInterpolator;
+import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
 import org.knowm.xchart.SwingWrapper;
 import org.knowm.xchart.XYChart;
 import org.knowm.xchart.XYChartBuilder;
@@ -193,7 +195,10 @@ public class WindViewer
     private TrackPoint parseTrackPoint(Node trackPointNode)
     {
         SimpleDateFormat sdf1 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        TimeZone utc = TimeZone.getTimeZone("UTC");
+        sdf1.setTimeZone(utc);
         SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+        sdf2.setTimeZone(utc);
         
         TrackPoint trackDataPoint = new TrackPoint();
         NamedNodeMap attrs = trackPointNode.getAttributes();
@@ -244,29 +249,11 @@ public class WindViewer
      * 
      * @param windData the list of wind data points
      */
-    private void printWindData(List<WindDataPoint> windData)
+    private void printTrackSegment(TrackSegment trackSegment)
     {
-        for (WindDataPoint wdp: windData)
-        {
-            System.out.println(wdp);
-        }
+        System.out.println(trackSegment.toString());
     }
-    
-    /**
-     * Makes an array of x data for the chart
-     * @param windList
-     * @return
-     */
-    public List<Date> makeXData(List<WindDataPoint> windList)
-    {
-        List<Date> xData = new ArrayList<Date>();
-        for (WindDataPoint wdp : windList)
-        {
-            xData.add(wdp.getTimestamp());
-        }
-        return xData;
-    }
-    
+
     /**
      * Makes an array of x data for the chart
      * @param windList
@@ -280,38 +267,6 @@ public class WindViewer
             xData.add(tp.getTimestamp());
         }
         return xData;
-    }
-    
-    /**
-     * Makes an array of y data.
-     * 
-     * @param windList
-     * @param the type of data
-     * @return
-     */
-    public List<Number> makeYData(List<WindDataPoint> windList, WIND_DATA_TYPE dataType)
-    {
-        List<Number> yData = new ArrayList<Number>();
-        for (int i = 0; i < windList.size(); i++)
-        {
-            if (dataType == WIND_DATA_TYPE.windSpeed)
-            {
-                yData.add(windList.get(i).getWindSpeed());
-            }
-            else if (dataType == WIND_DATA_TYPE.maxWindSpeed)
-            {
-                yData.add(windList.get(i).getMaxWindSpeed());
-            }
-            else if (dataType == WIND_DATA_TYPE.temperature)
-            {
-                yData.add(windList.get(i).getTemperature());
-            }
-            else if (dataType == WIND_DATA_TYPE.chill)
-            {
-                yData.add(windList.get(i).getChill());
-            }
-        }
-        return yData;
     }
     
     /**
@@ -340,11 +295,76 @@ public class WindViewer
     }
     
     /**
-     * Makes wind and temperature charts.
+     * Prints the wind data.
      * 
-     * @param windList the wind list
+     * @param windData the list of wind data points
      */
-    public void makeCharts(List<WindDataPoint> windList)
+    private void printWindData(List<WindDataPoint> windData)
+    {
+        for (WindDataPoint wdp: windData)
+        {
+            System.out.println(wdp);
+        }
+    }
+    
+    /**
+     * Makes an array of x data for the chart
+     * @param windList
+     * @return
+     */
+    public List<Date> makeXData(List<WindDataPoint> windList)
+    {
+        List<Date> xData = new ArrayList<Date>();
+        for (WindDataPoint wdp : windList)
+        {
+            xData.add(wdp.getTimestamp());
+        }
+        return xData;
+    }
+    
+    /**
+     * Makes an array of y data.
+     * 
+     * @param windList
+     * @param the type of data
+     * @return
+     */
+    public List<Number> makeYData(List<WindDataPoint> windList, WIND_DATA_TYPE dataType)
+    {
+        List<Number> yData = new ArrayList<Number>();
+        for (int i = 0; i < windList.size(); i++)
+        {
+            WindDataPoint windDataPoint = windList.get(i);
+            if (dataType == WIND_DATA_TYPE.windSpeed)
+            {
+                double windSpeed = windDataPoint.getWindSpeed();
+                yData.add(windSpeed);
+            }
+            else if (dataType == WIND_DATA_TYPE.maxWindSpeed)
+            {
+                double maxWindSpeed = windDataPoint.getMaxWindSpeed();
+                yData.add(maxWindSpeed);
+            }
+            else if (dataType == WIND_DATA_TYPE.temperature)
+            {
+                double temperature = windDataPoint.getTemperature();
+                yData.add(temperature);
+            }
+            else if (dataType == WIND_DATA_TYPE.chill)
+            {
+                double chill = windDataPoint.getChill();
+                yData.add(chill);
+            }
+        }
+        return yData;
+    }
+    
+    /**
+     * Makes a wind chart for the given list of Wind data points.
+     * 
+     * @param windList the list of Wind data points
+     */
+    public void makeWindChart(List<WindDataPoint> windList)
     {
         XYChartBuilder windChartBuilder = new XYChartBuilder();
         windChartBuilder.width(1600);
@@ -360,7 +380,18 @@ public class WindViewer
         XYStyler styler = windChart.getStyler();
         styler.setLegendPosition(LegendPosition.OutsideS);
         styler.setHasAnnotations(false);
-
+        
+        SwingWrapper<XYChart> swingWrapper = new SwingWrapper<XYChart>(windChart);
+        swingWrapper.displayChart();
+    }
+    
+    /**
+     * Makes a temperature chart for the given list of Wind data points.
+     * 
+     * @param windList the list of Wind data points
+     */
+    public void makeTemperatureChart(List<WindDataPoint> windList)
+    {
         XYChartBuilder temperatureChartBuilder = new XYChartBuilder();
         temperatureChartBuilder.width(1600);
         temperatureChartBuilder.height(400);
@@ -368,18 +399,15 @@ public class WindViewer
         temperatureChartBuilder.xAxisTitle("time");
         temperatureChartBuilder.yAxisTitle("Degrees Centigrade");
 
-        
         XYChart temperatureChart = temperatureChartBuilder.build();
+        List<Date> xData = makeXData(windList);
         temperatureChart.addSeries("Temperature", xData, makeYData(windList, WIND_DATA_TYPE.temperature));
         temperatureChart.addSeries("Chill", xData, makeYData(windList, WIND_DATA_TYPE.chill));
-        styler = temperatureChart.getStyler();
+        XYStyler styler = temperatureChart.getStyler();
         styler.setLegendPosition(LegendPosition.OutsideS);
         styler.setHasAnnotations(false);
         
-        SwingWrapper<XYChart> swingWrapper = new SwingWrapper<XYChart>(windChart);
-        swingWrapper.displayChart();
-        
-        swingWrapper = new SwingWrapper<XYChart>(temperatureChart);
+        SwingWrapper<XYChart> swingWrapper = new SwingWrapper<XYChart>(temperatureChart);
         swingWrapper.displayChart();
     }
     
@@ -482,29 +510,6 @@ public class WindViewer
         return dateString;
     }
     
-    
-    /**
-     * Returns a sublist of wind data from a given timestamp to a given timestamp.
-     * 
-     * @param windData the original list
-     * @param from the "from" timestamp
-     * @param to the "to" timestamp
-     * @return the sublist
-     */
-    List<WindDataPoint> getWindData(List<WindDataPoint> windData, Date from, Date to)
-    {
-        List<WindDataPoint> result = new ArrayList<WindDataPoint>();
-        for (WindDataPoint wdp : windData)
-        {
-            Date ts = wdp.getTimestamp();
-            if (from.before(ts) && to.after(ts))
-            {
-                result.add(wdp);
-            }
-        }
-        return result;
-    }
-    
     /**
      * Returns a sublist of track data from a given timestamp to a given timestamp.
      * 
@@ -526,46 +531,32 @@ public class WindViewer
         }
         return result;
     }
-
+    
     /**
-     * Displays the weather charts based on weather data from the given URL.
+     * Displays speed charts based on track data from the given URL.
      * 
-     * @param url the URL pointing to the data source
+     * @param trackList the track list
      */
-    private void displayWeatherCharts(String url)
+    private void displaySpeedCharts(List<Track> trackList)
     {
-        displayWeatherCharts(url, (Date) null, (Date) null);
+        displaySpeedCharts(trackList, (Date) null, (Date) null);
     }
     
     /**
-     * Displays live weather charts (i.e. from n hours back to now).
+     * Displays speed charts based on track data from the given URL.
      * 
-     * @param url the URL pointing to the data source
-     * @param nHoursBack from date is n hours back from now
+     * @param trackList the track list
+     * @param from      the "from" timestamp in ISO format (GMT)
+     * @param to        the "to" timestamp in ISO format (GMT)
      */
-    private void displayLiveWeatherCharts(String url, int nHoursBack)
-    {
-        GregorianCalendar fromDate = new GregorianCalendar();
-        fromDate.add(Calendar.HOUR, -3);
-        GregorianCalendar toDate = new GregorianCalendar();
-        displayWeatherCharts(url, fromDate.getTime(), toDate.getTime());
-    }
-    
-    /**
-     * Displays the weather charts based on weather data from the given URL.
-     * 
-     * @param url  the URL pointing to the data source
-     * @param from the "from" timestamp
-     * @param to   the "to" timestamp
-     */
-    private void displayWeatherCharts(String url, String from, String to)
+    private void displaySpeedCharts(List<Track> trackList, String from, String to)
     {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
         try
         {
             Date fromTimeStamp = sdf.parse(from);
             Date toTimeStamp = sdf.parse(to);
-            displayWeatherCharts(url, fromTimeStamp, toTimeStamp);
+            displaySpeedCharts(trackList, fromTimeStamp, toTimeStamp);
         }
         catch (ParseException e)
         {
@@ -574,72 +565,14 @@ public class WindViewer
     }
     
     /**
-     * Displays the weather charts based on weather data from the given URL.
+     * Displays a speed chart based on track data from the given track list.
      * 
-     * @param url  the URL pointing to the data source
-     * @param from the "from" timestamp
-     * @param to   the "to" timestamp
+     * @param trackList the track list
+     * @param from      the "from" timestamp
+     * @param to        the "to" timestamp
      */
-    private void displayWeatherCharts(String url, Date from, Date to)
+    private void displaySpeedCharts(List<Track> trackList, Date from, Date to)
     {
-        List<WindDataPoint> windData = parseWindData(url);
-        if (from == null || to == null)
-        {
-            makeCharts(windData);
-        }
-        else
-        {
-            List<WindDataPoint> filteredWindData = this.getWindData(windData, from, to);
-            if (filteredWindData.size() > 0)
-            {
-                makeCharts(filteredWindData);
-            }
-        }
-    }
-
-    /**
-     * Displays speed charts based on track data from the given URL.
-     * 
-     * @param url  the URL pointing to the data source
-     */
-    private void displaySpeedCharts(String url)
-    {
-        displaySpeedCharts(url, (Date) null, (Date) null);
-    }
-    
-    /**
-     * Displays speed charts based on track data from the given URL.
-     * 
-     * @param url  the URL pointing to the data source
-     * @param from the "from" timestamp in ISO format (GMT)
-     * @param to   the "to" timestamp in ISO format (GMT)
-     */
-    private void displaySpeedCharts(String url, String from, String to)
-    {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
-        try
-        {
-            Date fromTimeStamp = sdf.parse(from);
-            Date toTimeStamp = sdf.parse(to);
-            displaySpeedCharts(url, fromTimeStamp, toTimeStamp);
-        }
-        catch (ParseException e)
-        {
-            e.printStackTrace();
-        }
-    }
-
-    
-    /**
-     * Displays a speed chart based on track data from the given URL.
-     * 
-     * @param url  the URL pointing to the data source
-     * @param from the "from" timestamp
-     * @param to   the "to" timestamp
-     */
-    private void displaySpeedCharts(String url, Date from, Date to)
-    {
-        List<Track> trackList = parseTracks(url);
         for (Track track : trackList)
         {
             List<TrackSegment> trackSegments = track.getTrackSegments();
@@ -665,17 +598,17 @@ public class WindViewer
     }
     
     /**
-     * Displays a speed chart based on track data from the given URL.
+     * Extracts a list of track segments from the given track list. Segments are extracted if the speed values of all the points of
+     * the segment is grater than the given threshold and the number of points is greater than the given minimum.
      * 
-     * @param url            the URL pointing to the data source
+     * @param trackList      the list of tracks
      * @param speedThreshold the speed of all points of a subsegment must be greater than this threshold
      * @param minPoints      the minimum number of points of a subsegment
      * @return               the number of segments to be displayed
      */
-    private int displaySpeedCharts(String url, double speedThreshold, int minPoints)
+    private List<TrackSegment> extractTrackSegments(List<Track> trackList, double speedThreshold, int minPoints)
     {
-        int nSegments = 0;
-        List<Track> trackList = parseTracks(url);
+        List<TrackSegment> result = new ArrayList<TrackSegment>();
         for (Track track : trackList)
         {
             List<TrackSegment> trackSegments = track.getTrackSegments();
@@ -684,12 +617,275 @@ public class WindViewer
                 List<TrackSegment> extractedTrackSegments = trackSegment.extractByTopSpeed(speedThreshold, minPoints);
                 for (TrackSegment extractedTrackSegment : extractedTrackSegments)
                 {
-                    nSegments++;
-                    makeCharts(extractedTrackSegment);
+                    result.add(extractedTrackSegment);
                 }
             }
         }
-        return nSegments;
+        return result;
+    }
+    
+    /**
+     * Returns a sublist of wind data from a given timestamp to a given timestamp.
+     * 
+     * @param windData the original list
+     * @param from the "from" timestamp
+     * @param to the "to" timestamp
+     * @return the sublist
+     */
+    private List<WindDataPoint> getWindData(List<WindDataPoint> windData, Date from, Date to)
+    {
+        List<WindDataPoint> result = new ArrayList<WindDataPoint>();
+        WindDataPoint firstWdp = null;
+        boolean isFirstWdpAdded = false;
+        boolean isLastWdpAdded = false;
+        for (WindDataPoint wdp : windData)
+        {
+            Date ts = wdp.getTimestamp();
+            if (from.before(ts) && ! isFirstWdpAdded)
+            {
+                result.add(firstWdp);
+                isFirstWdpAdded = true;
+            }
+            else
+            {
+                firstWdp = wdp;
+            }
+            if (isLastWdpAdded)
+            {
+                break;
+            }
+            if (from.before(ts) && to.after(ts))
+            {
+                result.add(wdp);
+            }
+            else if (result.size() > 0)
+            {
+                result.add(wdp);
+                isLastWdpAdded = true;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Displays the weather charts based on the given wind data.
+     * 
+     * @param windData the wind data
+     */
+    private void displayWeatherCharts(List<WindDataPoint> windData)
+    {
+        displayWeatherCharts(windData, (Date) null, (Date) null);
+    }
+    
+    /**
+     * Displays live weather charts (i.e. from n hours back to now).
+     * 
+     * @param windData the wind data
+     * @param nHoursBack from date is n hours back from now
+     */
+    private void displayLiveWeatherCharts(List<WindDataPoint> windData, int nHoursBack)
+    {
+        GregorianCalendar fromDate = new GregorianCalendar();
+        fromDate.add(Calendar.HOUR, -3);
+        GregorianCalendar toDate = new GregorianCalendar();
+        displayWeatherCharts(windData, fromDate.getTime(), toDate.getTime());
+    }
+    
+    /**
+     * Displays the weather charts based on weather data from the given URL.
+     * 
+     * @param windData the wind data
+     * @param from     the "from" timestamp
+     * @param to       the "to" timestamp
+     */
+    private void displayWeatherCharts(List<WindDataPoint> windData, String from, String to)
+    {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+        try
+        {
+            Date fromTimeStamp = sdf.parse(from);
+            Date toTimeStamp = sdf.parse(to);
+            displayWeatherCharts(windData, fromTimeStamp, toTimeStamp);
+        }
+        catch (ParseException e)
+        {
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Displays the weather charts based on weather data from the given URL.
+     * 
+     * @param windData the wind data
+     * @param from     the "from" timestamp
+     * @param to       the "to" timestamp
+     */
+    private void displayWeatherCharts(List<WindDataPoint> windData, Date from, Date to)
+    {
+        if (from != null && to != null)
+        {
+            windData = this.getWindData(windData, from, to);
+        }
+        makeWindChart(windData);
+        makeTemperatureChart(windData);
+    }
+
+    /**
+     * Creates a list of empty wind data points based on the given timestamps
+     * 
+     * @param timstamps the array of timestamps to be used for the wind data points
+     * @return the list of empty wind data points
+     */
+    private List<WindDataPoint> createEmptyWindDataPoints(Date[] timstamps)
+    {
+        List<WindDataPoint> emptyWindDataPoints = new ArrayList<WindDataPoint>();
+        for (Date timestamp : timstamps)
+        {
+            WindDataPoint wdpt = new WindDataPoint();
+            wdpt.setTimestamp(timestamp);
+            emptyWindDataPoints.add(wdpt);
+        }
+        return emptyWindDataPoints;
+    }
+    
+    
+    /**
+     * Creates an interpolation function for the given wind data type based on the given wind data points.
+     * 
+     * @param windDataPoints the wind data points
+     * @return the interpolation function
+     */
+    private PolynomialSplineFunction createInterpolationFunction(List<WindDataPoint> windDataPoints,
+                                                                 WIND_DATA_TYPE windDataType)
+    {
+        int nDataPoints = windDataPoints.size();
+        double[] xData = new double[nDataPoints];
+        double[] yData = new double[nDataPoints];
+        for (int i = 0; i < nDataPoints; i++)
+        {
+            WindDataPoint windDataPoint = windDataPoints.get(i);
+            xData[i] = (double) windDataPoint.getTimestamp().getTime();
+            switch (windDataType)
+            {
+                case windSpeed:
+                    yData[i] = windDataPoint.getWindSpeed();
+                    break;
+                case maxWindSpeed:
+                    yData[i] = windDataPoint.getMaxWindSpeed();
+                    break;
+                case temperature:
+                    yData[i] = windDataPoint.getTemperature();
+                    break;
+                case chill:
+                    yData[i] = windDataPoint.getChill();
+                    break;
+                default:
+                    break;
+            }
+        }
+        SplineInterpolator splineInterpolator = new SplineInterpolator();
+        PolynomialSplineFunction splineFunction = splineInterpolator.interpolate(xData, yData);
+        return splineFunction;
+    }
+
+
+    /**
+     * Populates the interpolated wind data based on the given spline funtion.
+     * 
+     * @param interpolatedWindData the wind data to be populated
+     * @param windDataType         the type of wind data
+     * @param spline               the spline function responsible for the interpolation
+     */
+    private void populateInterpolatedWindData(List<WindDataPoint> interpolatedWindData,
+                                              WIND_DATA_TYPE windDataType,
+                                              PolynomialSplineFunction spline)
+    {
+        for (WindDataPoint windDataPoint : interpolatedWindData)
+        {
+            double timestampAsLong = (double) windDataPoint.getTimestamp().getTime();
+            switch (windDataType)
+            {
+                case windSpeed:
+                    windDataPoint.setWindSpeed(spline.value(timestampAsLong));
+                    break;
+                case maxWindSpeed:
+                    windDataPoint.setMaxWindSpeed(spline.value(timestampAsLong));
+                    break;
+                case temperature:
+                    windDataPoint.setTemperature(spline.value(timestampAsLong));
+                    break;
+                case chill:
+                    windDataPoint.setChill(spline.value(timestampAsLong));
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+    
+    /**
+     * Returns a list of interpolated wind data points.
+     * 
+     * @param windDataPoints the original wind data points
+     * @param timstamps      the timestamps to be used for the resulting list
+     * @return
+     */
+    private List<WindDataPoint> interpolateWindData(List<WindDataPoint> windDataPoints, Date[] timstamps)
+    {
+        List<WindDataPoint> interpolatedWindData = createEmptyWindDataPoints(timstamps);
+        populateInterpolatedWindData(interpolatedWindData,
+                                     WIND_DATA_TYPE.windSpeed,
+                                     createInterpolationFunction(windDataPoints, WIND_DATA_TYPE.windSpeed));
+        populateInterpolatedWindData(interpolatedWindData,
+                                     WIND_DATA_TYPE.maxWindSpeed,
+                                     createInterpolationFunction(windDataPoints, WIND_DATA_TYPE.maxWindSpeed));
+        populateInterpolatedWindData(interpolatedWindData,
+                                     WIND_DATA_TYPE.temperature,
+                                     createInterpolationFunction(windDataPoints, WIND_DATA_TYPE.temperature));
+        populateInterpolatedWindData(interpolatedWindData,
+                                     WIND_DATA_TYPE.chill,
+                                     createInterpolationFunction(windDataPoints, WIND_DATA_TYPE.chill));
+        return interpolatedWindData;
+    }
+    
+    /**
+     * Tests analyzing speed and wind data from given data sets.
+     */
+    private void testAnalyzeTrackAndWindData()
+    {
+        String gpxUrl = "file:///H|/bwender/windsurfing/bernd.wender_168605310_20200607_224206.gpx";
+        double speedThreshold = 32.0;
+        int minPoints = 1000;
+        List<Track> trackList = parseTracks(gpxUrl);
+        List<TrackSegment> extractedTrackSegments = extractTrackSegments(trackList, speedThreshold, minPoints);
+        System.out.println("Found " + extractedTrackSegments.size() + " matching segments for speed threshold = " +
+                           speedThreshold + ", min. points = " + minPoints);
+
+        String weatherUrl = "file:///H|/bwender/windsurfing/windData_2020-06-08.htm";
+        List<WindDataPoint> windData = parseWindData(weatherUrl);
+        
+        for (TrackSegment trackSegment : extractedTrackSegments)
+        {
+            // printTrackSegment(trackSegment);
+            this.makeCharts(trackSegment);
+            
+            Date[] timestamps = trackSegment.getTimestamps();
+            List<WindDataPoint> extractedWindData = getWindData(windData, timestamps[0], timestamps[timestamps.length - 1]);
+            // printWindData(extractedWindData);
+            List<WindDataPoint> interpolatedWindData = interpolateWindData(extractedWindData, timestamps);
+            displayWeatherCharts(interpolatedWindData);
+        }
+    }
+    
+    /**
+     * Tests printing live weather data
+     */
+    private void testPrintLiveWeatherData()
+    {
+        String url = "http://212.232.26.104/";
+        int nHoursBack = 3;
+        List<WindDataPoint> windData = parseWindData(url);
+        displayLiveWeatherCharts(windData, nHoursBack);
     }
     
     /**
@@ -698,28 +894,9 @@ public class WindViewer
     public static void main(String[] args)
     {
         WindViewer windViewer = new WindViewer();
-        // windViewer.displayWeatherCharts("file:///d|/bernd/projects/WindViewer/data/wind.xml");
-
-        // windViewer.displayWeatherCharts("http://212.232.26.104/");
-
-        // String weatherUrl = "file:///H|/bwender/windsurfing/windData_2020-06-08.htm";
-        // windViewer.displayWeatherCharts(weatherUrl);
+        // windViewer.testPrintLiveWeatherData();
         
-        String gpxUrl = "file:///H|/bwender/windsurfing/bernd.wender_168605310_20200607_224206.gpx";
-        double speedThreshold = 50.0;
-        int minPoints = 50;
-        int nSegments = windViewer.displaySpeedCharts(gpxUrl, 52.0, 50);
-        System.out.println("Found " + nSegments + " matching segments for speed threshold = " + speedThreshold + ", min. points = " + minPoints);
-
-        /*
-        String gpxUrl = "file:///d|/bernd/projects/WindViewer/data/location_2020-06-01.gpx";
-        String weatherUrl = "file:///d|/bernd/projects/WindViewer/data/wind_2020-06-01.xml";
-        String from = "2020-06-01T16:00:00";
-        String to =   "2020-06-01T16:03:01";
-        // windViewer.displaySpeedCharts(url);
-        windViewer.displaySpeedCharts(gpxUrl, from, to);
-        windViewer.displayWeatherCharts(weatherUrl, from, to);
-        */
+        windViewer.testAnalyzeTrackAndWindData();
         
         /*
         Date timeStamp = windViewer.parseDateString("11:42:00 30.05.2020");

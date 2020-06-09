@@ -1,6 +1,7 @@
 package at.home.bernd;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -45,7 +46,24 @@ public class TrackSegment
     }
     
     /**
-     * Extracts a list of track sub segments of this segment where the top speed is greater than the given threshold
+     * Returns the timestamps of this track segment.
+     * 
+     * @return the timestamps
+     */
+    public Date[] getTimestamps()
+    {
+        int nTrackPoints = trackPoints.size();
+        Date[] timestamps = new Date[nTrackPoints];
+        for (int i = 0; i < nTrackPoints; i++)
+        {
+            TrackPoint trackPoint = trackPoints.get(i);
+            timestamps[i] = trackPoint.getTimestamp();
+        }
+        return timestamps;
+    }
+    
+    /**
+     * Extracts a list of track sub segments of this segment where the top speed is greater than the given threshold.
      * 
      * @param speedThreshold the speed of all points of a subsegment must be greater than this threshold
      * @param minPoints      the minimum number of points of a subsegment
