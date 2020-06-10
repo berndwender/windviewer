@@ -37,6 +37,34 @@ import at.home.bernd.WindDataPoint.WIND_DATA_TYPE;
 public class WindViewer
 {
     /**
+     * Maps the wind direction from textual to degrees (E = 90; S = 180; W = 270; N = 360;)
+     * 
+     * @param direction the textual representation of the wind direction (German or English)
+     * @return the corresponding value in degrees
+     */
+    private double mapDirection(String direction)
+    {
+        String d = direction.strip();
+        if ("NNE".equals(d) || ("NNO".equals(d))) { return 22.5; }
+        if ("NE".equals(d)  || ("NO".equals(d)))  { return 45; }
+        if ("ENE".equals(d) || ("ONO".equals(d))) { return 67.5; }
+        if ("E".equals(d)   || ("O").equals(d))   { return 90; }
+        if ("ESE".equals(d) || ("OSO".equals(d))) { return 112.5; }
+        if ("SE".equals(d)  || ("SO".equals(d)))  { return 135; }
+        if ("SSE".equals(d) || ("SSO".equals(d))) { return 157.5; }
+        if ("S".equals(d))                        { return 180; }
+        if ("SSW".equals(d))                      { return 202.5; }
+        if ("SW".equals(d))                       { return 225; }
+        if ("WSW".equals(d))                      { return 247.5; }
+        if ("W".equals(d))                        { return 270; }
+        if ("WNW".equals(d))                      { return 292.5; }
+        if ("NW".equals(d))                       { return 315; }
+        if ("NNW".equals(d))                      { return 337.5; }
+        if ("N".equals(d))                        { return 360; }
+        return -1;
+    }
+    
+    /**
      * Parses the wind data (table in XHTML format) and returns the result as a list of wind data points
      */
     private List<WindDataPoint> parseWindData(String url)
@@ -79,7 +107,7 @@ public class WindViewer
                         }
                         if (idx == 1)
                         {
-                            wdt.setDirection(text);
+                            wdt.setDirection(mapDirection(text));
                         }
                         if (idx == 2)
                         {
@@ -345,6 +373,11 @@ public class WindViewer
                 double maxWindSpeed = windDataPoint.getMaxWindSpeed();
                 yData.add(maxWindSpeed);
             }
+            else if (dataType == WIND_DATA_TYPE.direction)
+            {
+                double direction = windDataPoint.getDirection();
+                yData.add(direction);
+            }
             else if (dataType == WIND_DATA_TYPE.temperature)
             {
                 double temperature = windDataPoint.getTemperature();
@@ -369,7 +402,7 @@ public class WindViewer
         XYChartBuilder windChartBuilder = new XYChartBuilder();
         windChartBuilder.width(1600);
         windChartBuilder.height(400);
-        windChartBuilder.title("Wind");
+        windChartBuilder.title("Wind Speed");
         windChartBuilder.xAxisTitle("time");
         windChartBuilder.yAxisTitle("km / h");
         
@@ -386,6 +419,31 @@ public class WindViewer
     }
     
     /**
+     * Makes a wind direction chart for the given list of Wind data points.
+     * 
+     * @param windList the list of Wind data points
+     */
+    public void makeWindDirectionChart(List<WindDataPoint> windList)
+    {
+        XYChartBuilder windChartBuilder = new XYChartBuilder();
+        windChartBuilder.width(1600);
+        windChartBuilder.height(400);
+        windChartBuilder.title("Wind Direction");
+        windChartBuilder.xAxisTitle("time");
+        windChartBuilder.yAxisTitle("Degrees");
+        
+        XYChart windDirectionChart = windChartBuilder.build();
+        List<Date> xData = makeXData(windList);
+        windDirectionChart.addSeries("Wind Direction", xData, makeYData(windList, WIND_DATA_TYPE.direction));
+        XYStyler styler = windDirectionChart.getStyler();
+        styler.setLegendPosition(LegendPosition.OutsideS);
+        styler.setHasAnnotations(false);
+        
+        SwingWrapper<XYChart> swingWrapper = new SwingWrapper<XYChart>(windDirectionChart);
+        swingWrapper.displayChart();
+    }
+    
+    /**
      * Makes a temperature chart for the given list of Wind data points.
      * 
      * @param windList the list of Wind data points
@@ -395,9 +453,9 @@ public class WindViewer
         XYChartBuilder temperatureChartBuilder = new XYChartBuilder();
         temperatureChartBuilder.width(1600);
         temperatureChartBuilder.height(400);
-        temperatureChartBuilder.title("Temperature");
+        temperatureChartBuilder.title("Air Temperature");
         temperatureChartBuilder.xAxisTitle("time");
-        temperatureChartBuilder.yAxisTitle("Degrees Centigrade");
+        temperatureChartBuilder.yAxisTitle("C");
 
         XYChart temperatureChart = temperatureChartBuilder.build();
         List<Date> xData = makeXData(windList);
@@ -652,7 +710,10 @@ public class WindViewer
             }
             if (isLastWdpAdded)
             {
-                break;
+                if (result.size() > 2)
+                {
+                    break;
+                }
             }
             if (from.before(ts) && to.after(ts))
             {
@@ -727,6 +788,7 @@ public class WindViewer
             windData = this.getWindData(windData, from, to);
         }
         makeWindChart(windData);
+        makeWindDirectionChart(windData);
         makeTemperatureChart(windData);
     }
 
@@ -773,6 +835,9 @@ public class WindViewer
                 case maxWindSpeed:
                     yData[i] = windDataPoint.getMaxWindSpeed();
                     break;
+                case direction:
+                    yData[i] = windDataPoint.getDirection();
+                    break;
                 case temperature:
                     yData[i] = windDataPoint.getTemperature();
                     break;
@@ -811,6 +876,9 @@ public class WindViewer
                 case maxWindSpeed:
                     windDataPoint.setMaxWindSpeed(spline.value(timestampAsLong));
                     break;
+                case direction:
+                    windDataPoint.setDirection(spline.value(timestampAsLong));
+                    break;
                 case temperature:
                     windDataPoint.setTemperature(spline.value(timestampAsLong));
                     break;
@@ -840,6 +908,9 @@ public class WindViewer
                                      WIND_DATA_TYPE.maxWindSpeed,
                                      createInterpolationFunction(windDataPoints, WIND_DATA_TYPE.maxWindSpeed));
         populateInterpolatedWindData(interpolatedWindData,
+                                     WIND_DATA_TYPE.direction,
+                                     createInterpolationFunction(windDataPoints, WIND_DATA_TYPE.direction));
+        populateInterpolatedWindData(interpolatedWindData,
                                      WIND_DATA_TYPE.temperature,
                                      createInterpolationFunction(windDataPoints, WIND_DATA_TYPE.temperature));
         populateInterpolatedWindData(interpolatedWindData,
@@ -854,8 +925,8 @@ public class WindViewer
     private void testAnalyzeTrackAndWindData()
     {
         String gpxUrl = "file:///H|/bwender/windsurfing/bernd.wender_168605310_20200607_224206.gpx";
-        double speedThreshold = 32.0;
-        int minPoints = 1000;
+        double speedThreshold = 50.0;
+        int minPoints = 150;
         List<Track> trackList = parseTracks(gpxUrl);
         List<TrackSegment> extractedTrackSegments = extractTrackSegments(trackList, speedThreshold, minPoints);
         System.out.println("Found " + extractedTrackSegments.size() + " matching segments for speed threshold = " +
@@ -880,7 +951,7 @@ public class WindViewer
     /**
      * Tests printing live weather data
      */
-    private void testPrintLiveWeatherData()
+    private void testDisplayLiveWeatherData()
     {
         String url = "http://212.232.26.104/";
         int nHoursBack = 3;
@@ -889,20 +960,40 @@ public class WindViewer
     }
     
     /**
+     * Tests the mapping of wind directions.
+     */
+    private void testMapDirection()
+    {
+        String[] germanTerms =  { "N", "NNO", "NO", "ONO", "O", "OSO", "SO", "SSO", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW" };
+        String[] englishTerms = { "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW" };
+
+        for (String germanTerm: germanTerms)
+        {
+            System.out.println(germanTerm + " = " + mapDirection(germanTerm));
+        }
+        System.out.println();
+        for (String englishTerm: englishTerms)
+        {
+            System.out.println(englishTerm + " = " + mapDirection(englishTerm));
+        }
+    }
+    
+    /**
      * Starts the wind viewer
      */
     public static void main(String[] args)
     {
         WindViewer windViewer = new WindViewer();
-        // windViewer.testPrintLiveWeatherData();
+        windViewer.testDisplayLiveWeatherData();
         
-        windViewer.testAnalyzeTrackAndWindData();
+        // windViewer.testAnalyzeTrackAndWindData();
         
         /*
         Date timeStamp = windViewer.parseDateString("11:42:00 30.05.2020");
         System.out.println(windViewer.timeString(timeStamp));
         System.out.println(windViewer.dateString(timeStamp));
         System.out.println(windViewer.parseTemperatureString(" 14.3 C"));
+        windViewer.testMapDirection();
         */
     }
 }

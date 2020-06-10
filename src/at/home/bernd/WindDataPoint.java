@@ -28,9 +28,9 @@ public class WindDataPoint
     private Date timestamp;
     
     /**
-     * The wind direction
+     * The wind direction in degrees: N = 0 (=360); E = 90; S = 180; W = 270
      */
-    private String direction;
+    private double direction;
     
     /**
      * The wind speed in km/h+
@@ -71,7 +71,7 @@ public class WindDataPoint
     /**
      * @return the direction
      */
-    public String getDirection()
+    public double getDirection()
     {
         return direction;
     }
@@ -79,7 +79,7 @@ public class WindDataPoint
     /**
      * @param direction the direction to set
      */
-    public void setDirection(String direction)
+    public void setDirection(double direction)
     {
         this.direction = direction;
     }
