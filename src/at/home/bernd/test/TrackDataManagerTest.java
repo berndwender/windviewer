@@ -16,34 +16,46 @@ public class TrackDataManagerTest
 {
     /**
      * Tests analyzing speed and wind data from given data sets.
+     * 
+     * @param gpxUrl     the URL of the GPX data
+     * @param weatherUrl the URL of the weather data
      */
-    private void testAnalyzeTrackAndWindData()
+    private void testAnalyzeTrackAndWindData(String gpxUrl, String weatherUrl)
     {
-        TrackDataManager trackDataManager = new TrackDataManager();
-        
-        String gpxUrl = "file:///H|/bwender/windsurfing/bernd.wender_168605310_20200607_224206.gpx";
         double speedThreshold = 50.0;
         int minPoints = 150;
+
+        WeatherDataManager weatherDataManager = new WeatherDataManager();
+        List<WindDataPoint> windData = weatherDataManager.parseWindData(weatherUrl);
+        
+        TrackDataManager trackDataManager = new TrackDataManager();
         List<Track> trackList = trackDataManager.parseTracks(gpxUrl);
+        trackDataManager.addWindDataToTrackList(trackList, windData);
+
         List<TrackSegment> extractedTrackSegments = trackDataManager.extractTrackSegments(trackList, speedThreshold, minPoints);
         System.out.println("Found " + extractedTrackSegments.size() + " matching segments for speed threshold = " +
                            speedThreshold + ", min. points = " + minPoints);
-
-        WeatherDataManager weatherDataManager = new WeatherDataManager();
-        String weatherUrl = "file:///H|/bwender/windsurfing/windData_2020-06-08.htm";
-        List<WindDataPoint> windData = weatherDataManager.parseWindData(weatherUrl);
         
         for (TrackSegment trackSegment : extractedTrackSegments)
         {
-            // printTrackSegment(trackSegment);
             trackDataManager.makeCharts(trackSegment);
-            
-            Date[] timestamps = trackSegment.getTimestamps();
-            List<WindDataPoint> extractedWindData = weatherDataManager.getWindData(windData, timestamps[0], timestamps[timestamps.length - 1]);
-            // printWindData(extractedWindData);
-            List<WindDataPoint> interpolatedWindData = weatherDataManager.interpolateWindData(extractedWindData, timestamps);
-            weatherDataManager.displayWeatherCharts(interpolatedWindData);
         }
+    }
+    
+    /**
+     * Tests combining speed and wind data from given data sets.
+     * 
+     * @param gpxUrl     the URL of the GPX data
+     * @param weatherUrl the URL of the weather data
+     */
+    private void testCombineTrackAndWindData(String gpxUrl, String weatherUrl)
+    {
+        WeatherDataManager weatherDataManager = new WeatherDataManager();
+        List<WindDataPoint> windData = weatherDataManager.parseWindData(weatherUrl);
+
+        TrackDataManager trackDataManager = new TrackDataManager();
+        List<Track> trackList = trackDataManager.parseTracks(gpxUrl);
+        trackDataManager.addWindDataToTrackList(trackList, windData);
     }
     
     /**
@@ -53,6 +65,10 @@ public class TrackDataManagerTest
     public static void main(String[] args)
     {
         TrackDataManagerTest trackDataManagerTest = new TrackDataManagerTest();
-        trackDataManagerTest.testAnalyzeTrackAndWindData();
+        String baseUrl = "file:///H|/bwender/windsurfing/";
+        String gpxUrl = baseUrl + "bernd.wender_168605310_20200619_101743.gpx";
+        String weatherUrl = baseUrl + "windData_2020-06-18.htm";
+
+        trackDataManagerTest.testAnalyzeTrackAndWindData(gpxUrl, weatherUrl);
     }
 }

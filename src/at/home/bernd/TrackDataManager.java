@@ -4,6 +4,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.TimeZone;
 
@@ -22,6 +23,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import at.home.bernd.TrackPoint.TRACK_DATA_TYPE;
+import at.home.bernd.WindDataPoint.WIND_DATA_TYPE;
 
 /**
  * Manages the processing of track data.
@@ -231,6 +233,18 @@ public class TrackDataManager
             {
                 yData.add(trackPoints.get(i).getCourse());
             }
+            else if (dataType == TRACK_DATA_TYPE.windSpeed)
+            {
+                yData.add(trackPoints.get(i).getWindSpeed());
+            }
+            else if (dataType == TRACK_DATA_TYPE.maxWindSpeed)
+            {
+                yData.add(trackPoints.get(i).getMaxWindSpeed());
+            }
+            else if (dataType == TRACK_DATA_TYPE.windDirection)
+            {
+                yData.add(trackPoints.get(i).getWindDirection());
+            }
         }
         return yData;
     }
@@ -244,6 +258,8 @@ public class TrackDataManager
     {
         makeSpeedChart(trackSegment);
         makeCourseChart(trackSegment);
+        makeWindChart(trackSegment);
+        // makeWindDirectionChart(trackSegment);
     }
     
     /**
@@ -290,11 +306,66 @@ public class TrackDataManager
         XYChart courseChart = courseChartBuilder.build();
         List<Number> courseData = makeYData(trackSegment, TRACK_DATA_TYPE.course);
         courseChart.addSeries("Course", xData, courseData);
+        
+        List<Number> windDirectionData = makeYData(trackSegment, TRACK_DATA_TYPE.windDirection);
+        courseChart.addSeries("Wind Direction", xData, windDirectionData);
+        
         XYStyler courseChartStyler = courseChart.getStyler();
         courseChartStyler.setLegendPosition(LegendPosition.OutsideS);
         courseChartStyler.setHasAnnotations(false);
         
         SwingWrapper<XYChart> swingWrapper = new SwingWrapper<XYChart>(courseChart);
+        swingWrapper.displayChart();
+    }
+    
+    /**
+     * Makes a wind chart for the given list of Wind data points.
+     * 
+     * @param windList the list of Wind data points
+     */
+    public void makeWindChart(TrackSegment trackSegment)
+    {
+        XYChartBuilder windChartBuilder = new XYChartBuilder();
+        List<Date> xData = makeXData(trackSegment);
+        windChartBuilder.width(1600);
+        windChartBuilder.height(400);
+        windChartBuilder.title("Wind Speed");
+        windChartBuilder.xAxisTitle("time");
+        windChartBuilder.yAxisTitle("km / h");
+        
+        XYChart windChart = windChartBuilder.build();
+        windChart.addSeries("Wind Speed", xData, makeYData(trackSegment, TRACK_DATA_TYPE.windSpeed));
+        windChart.addSeries("Max Wind Speed", xData, makeYData(trackSegment, TRACK_DATA_TYPE.maxWindSpeed));
+        XYStyler styler = windChart.getStyler();
+        styler.setLegendPosition(LegendPosition.OutsideS);
+        styler.setHasAnnotations(false);
+        
+        SwingWrapper<XYChart> swingWrapper = new SwingWrapper<XYChart>(windChart);
+        swingWrapper.displayChart();
+    }
+    
+    /**
+     * Makes a wind direction chart for the given list of Wind data points.
+     * 
+     * @param windList the list of Wind data points
+     */
+    public void makeWindDirectionChart(TrackSegment trackSegment)
+    {
+        XYChartBuilder windChartBuilder = new XYChartBuilder();
+        List<Date> xData = makeXData(trackSegment);
+        windChartBuilder.width(1600);
+        windChartBuilder.height(400);
+        windChartBuilder.title("Wind Direction");
+        windChartBuilder.xAxisTitle("time");
+        windChartBuilder.yAxisTitle("Degrees");
+        
+        XYChart windDirectionChart = windChartBuilder.build();
+        windDirectionChart.addSeries("Wind Direction", xData, makeYData(trackSegment, TRACK_DATA_TYPE.windDirection));
+        XYStyler styler = windDirectionChart.getStyler();
+        styler.setLegendPosition(LegendPosition.OutsideS);
+        styler.setHasAnnotations(false);
+        
+        SwingWrapper<XYChart> swingWrapper = new SwingWrapper<XYChart>(windDirectionChart);
         swingWrapper.displayChart();
     }
     
@@ -345,6 +416,61 @@ public class TrackDataManager
             }
         }
         return result;
+    }
+    
+    /**
+     * Adds the matching wind data to the given track list.
+     * 
+     * @param trackList the track list
+     * @param windData  the wind data
+     */
+    public void addWindDataToTrackList(List<Track> trackList, List<WindDataPoint> windData)
+    {
+        for (Track track : trackList)
+        {
+            addWindDataToTrack(track, windData);
+        }
+    }
+    
+    /**
+     * Adds the matching wind data to the given track.
+     * 
+     * @param track    the track segment
+     * @param windData the wind data
+     */
+    public void addWindDataToTrack(Track track, List<WindDataPoint> windData)
+    {
+        WeatherDataManager weatherDataManager = new WeatherDataManager();
+        List<TrackSegment> trackSegments = track.getTrackSegments();
+        for (TrackSegment trackSegment : trackSegments)
+        {
+            Date[] timestamps = trackSegment.getTimestamps();
+            List<WindDataPoint> extractedWindData = weatherDataManager.getWindData(windData, timestamps[0], timestamps[timestamps.length - 1]);
+            List<WindDataPoint> interpolatedWindData = weatherDataManager.interpolateWindData(extractedWindData, timestamps);
+            addWindDataToTrackSegement(trackSegment, interpolatedWindData);
+        }
+    }
+    
+    /**
+     * Adds the matching wind data to the given track segment.
+     * 
+     * @param trackSegment the track segment
+     * @param windData     the wind data
+     */
+    public void addWindDataToTrackSegement(TrackSegment trackSegment, List<WindDataPoint> windData)
+    {
+        List<TrackPoint> trackPoints = trackSegment.getTrackPoints();
+        Iterator<WindDataPoint> it = windData.iterator();
+        for (TrackPoint trackPoint : trackPoints)
+        {
+            WindDataPoint windDataPoint = it.next();
+            if (trackPoint.getTimestamp().equals(windDataPoint.getTimestamp()))
+            {
+                trackPoint.setWindDirection(windDataPoint.getDirection());
+                trackPoint.setWindSpeed(windDataPoint.getWindSpeed());
+                trackPoint.setMaxWindSpeed(windDataPoint.getMaxWindSpeed());
+            }
+        }
     }
     
     /**

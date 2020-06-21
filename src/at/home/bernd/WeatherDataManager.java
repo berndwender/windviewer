@@ -286,8 +286,11 @@ public class WeatherDataManager
             Date ts = wdp.getTimestamp();
             if (from.before(ts) && ! isFirstWdpAdded)
             {
-                result.add(firstWdp);
-                isFirstWdpAdded = true;
+                if (firstWdp != null)
+                {
+                    result.add(firstWdp);
+                    isFirstWdpAdded = true;
+                }
             }
             else
             {
@@ -443,16 +446,26 @@ public class WeatherDataManager
      * Populates the interpolated wind data based on the given spline funtion.
      * 
      * @param interpolatedWindData the wind data to be populated
+     * @param minWindTimestamp     the minimum timestamp of available wind data
+     * @param maxWindTimestamp     the maximum timestamp of available wind data
      * @param windDataType         the type of wind data
      * @param spline               the spline function responsible for the interpolation
      */
     private void populateInterpolatedWindData(List<WindDataPoint> interpolatedWindData,
+                                              Date minWindTimestamp,
+                                              Date maxWindTimestamp,
                                               WIND_DATA_TYPE windDataType,
                                               PolynomialSplineFunction spline)
     {
         for (WindDataPoint windDataPoint : interpolatedWindData)
         {
+            double minWTst = (double) minWindTimestamp.getTime();
+            double maxWTst = (double) maxWindTimestamp.getTime();
             double timestampAsLong = (double) windDataPoint.getTimestamp().getTime();
+            if (timestampAsLong < minWTst || timestampAsLong > maxWTst)
+            {
+                continue;
+            }
             switch (windDataType)
             {
                 case windSpeed:
@@ -485,20 +498,32 @@ public class WeatherDataManager
      */
     public List<WindDataPoint> interpolateWindData(List<WindDataPoint> windDataPoints, Date[] timstamps)
     {
+        Date minWindTimestamp = windDataPoints.get(0).getTimestamp();
+        Date maxWindTimestamp = windDataPoints.get(windDataPoints.size() - 1).getTimestamp();
         List<WindDataPoint> interpolatedWindData = createEmptyWindDataPoints(timstamps);
         populateInterpolatedWindData(interpolatedWindData,
+                                     minWindTimestamp,
+                                     maxWindTimestamp,
                                      WIND_DATA_TYPE.windSpeed,
                                      createInterpolationFunction(windDataPoints, WIND_DATA_TYPE.windSpeed));
         populateInterpolatedWindData(interpolatedWindData,
+                                     minWindTimestamp,
+                                     maxWindTimestamp,
                                      WIND_DATA_TYPE.maxWindSpeed,
                                      createInterpolationFunction(windDataPoints, WIND_DATA_TYPE.maxWindSpeed));
         populateInterpolatedWindData(interpolatedWindData,
+                                     minWindTimestamp,
+                                     maxWindTimestamp,
                                      WIND_DATA_TYPE.direction,
                                      createInterpolationFunction(windDataPoints, WIND_DATA_TYPE.direction));
         populateInterpolatedWindData(interpolatedWindData,
+                                     minWindTimestamp,
+                                     maxWindTimestamp,
                                      WIND_DATA_TYPE.temperature,
                                      createInterpolationFunction(windDataPoints, WIND_DATA_TYPE.temperature));
         populateInterpolatedWindData(interpolatedWindData,
+                                     minWindTimestamp,
+                                     maxWindTimestamp,
                                      WIND_DATA_TYPE.chill,
                                      createInterpolationFunction(windDataPoints, WIND_DATA_TYPE.chill));
         return interpolatedWindData;

@@ -18,7 +18,10 @@ public class TrackPoint
         longitude,
         elevation,
         course,
-        speed
+        speed,
+        windDirection,
+        windSpeed,
+        maxWindSpeed
     };
 
     /**
@@ -50,6 +53,21 @@ public class TrackPoint
      * The course (in degrees)
      */
     private double course;
+    
+    /**
+     * The wind direction in degrees: N = 0 (=360); E = 90; S = 180; W = 270
+     */
+    private double windDirection;
+    
+    /**
+     * The wind speed in km/h+
+     */
+    private double windSpeed;
+    
+    /**
+     * The maximum wind speed in km/h
+     */
+    private double maxWindSpeed;
     
     /**
      * @return the timestamp
@@ -146,6 +164,54 @@ public class TrackPoint
     {
         this.course = course;
     }
+    
+    /**
+     * @return the wind direction
+     */
+    public double getWindDirection()
+    {
+        return windDirection;
+    }
+
+    /**
+     * @param windDirection the wind direction to set
+     */
+    public void setWindDirection(double windDirection)
+    {
+        this.windDirection = windDirection;
+    }
+
+    /**
+     * @return the windSpeed
+     */
+    public double getWindSpeed()
+    {
+        return windSpeed;
+    }
+
+    /**
+     * @param windSpeed the windSpeed to set
+     */
+    public void setWindSpeed(double windSpeed)
+    {
+        this.windSpeed = windSpeed;
+    }
+
+    /**
+     * @return the maxWindSpeed
+     */
+    public double getMaxWindSpeed()
+    {
+        return maxWindSpeed;
+    }
+
+    /**
+     * @param maxWindSpeed the maxWindSpeed to set
+     */
+    public void setMaxWindSpeed(double maxWindSpeed)
+    {
+        this.maxWindSpeed = maxWindSpeed;
+    }
 
     /**
      * Returns vale rounded up to the given number of decimal places
@@ -173,12 +239,18 @@ public class TrackPoint
         sb.append(roundUpToNDecimalPlaces(this.latitude, 6));
         sb.append(" / ");
         sb.append(roundUpToNDecimalPlaces(this.longitude, 6));
-        sb.append(" / ");
+        sb.append(" / elev.: ");
         sb.append(roundUpToNDecimalPlaces(this.elevation, 1));
-        sb.append(" - ");
+        sb.append(" / speed: ");
         sb.append(roundUpToNDecimalPlaces(this.speed, 2));
         sb.append(" [");
         sb.append(roundUpToNDecimalPlaces(this.course, 2));
+        sb.append("] / wind speed: ");
+        sb.append(roundUpToNDecimalPlaces(this.windSpeed, 2));
+        sb.append(" - ");
+        sb.append(roundUpToNDecimalPlaces(this.maxWindSpeed, 2));
+        sb.append(" [");
+        sb.append(roundUpToNDecimalPlaces(this.windDirection, 2));
         sb.append("]\n");
         return sb.toString();
     }
