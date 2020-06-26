@@ -1,5 +1,7 @@
 package at.home.bernd;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -101,6 +103,20 @@ public class DataConversionUtility
     }
     
     /**
+     * Returns value rounded up to the given number of decimal places
+     * 
+     * @param value the original value
+     * @param n the number of decimal places
+     * @return the rounded number
+     */
+    public double roundUpToNDecimalPlaces(double value, int n)
+    {
+        BigDecimal bd = BigDecimal.valueOf(value);
+        bd = bd.setScale(n, RoundingMode.HALF_UP);
+        return bd.doubleValue();
+    }
+    
+    /**
      * Maps the wind direction from textual to degrees (E = 90; S = 180; W = 270; N = 360;)
      * 
      * @param direction the textual representation of the wind direction (German or English)
@@ -109,6 +125,7 @@ public class DataConversionUtility
     public double mapDirection(String direction)
     {
         String d = direction.strip();
+        if ("N".equals(d))                        { return 0.0; }
         if ("NNE".equals(d) || ("NNO".equals(d))) { return 22.5; }
         if ("NE".equals(d)  || ("NO".equals(d)))  { return 45; }
         if ("ENE".equals(d) || ("ONO".equals(d))) { return 67.5; }
@@ -124,7 +141,23 @@ public class DataConversionUtility
         if ("WNW".equals(d))                      { return 292.5; }
         if ("NW".equals(d))                       { return 315; }
         if ("NNW".equals(d))                      { return 337.5; }
-        if ("N".equals(d))                        { return 360; }
         return -1;
+    }
+    
+    /**
+     * Returns the course relative to the wind direction in degrees.
+     * 
+     * @param windDirection the direction of the wind
+     * @param course the course
+     * @return the relative course
+     */
+    public double relativeCourse(double windDirection, double course)
+    {
+        double angle = Math.abs(windDirection - course);
+        if (angle >= 180)
+        {
+            angle = 360 - angle;
+        }
+        return angle;
     }
 }

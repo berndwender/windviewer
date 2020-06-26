@@ -21,7 +21,8 @@ public class TrackPoint
         speed,
         windDirection,
         windSpeed,
-        maxWindSpeed
+        maxWindSpeed,
+        relCourse
     };
 
     /**
@@ -214,43 +215,30 @@ public class TrackPoint
     }
 
     /**
-     * Returns vale rounded up to the given number of decimal places
-     * 
-     * @param value the original value
-     * @param n the number of decimal places
-     * @return the rounded number
-     */
-    private double roundUpToNDecimalPlaces(double value, int n)
-    {
-        BigDecimal bd = BigDecimal.valueOf(value);
-        bd = bd.setScale(n, RoundingMode.HALF_UP);
-        return bd.doubleValue();
-    }
-
-    /**
      * Returns a simple string representation of the wind data point
      */
     public String toString()
     {
+        DataConversionUtility dcu = DataConversionUtility.getInstance();
         StringBuilder sb = new StringBuilder();
         sb.append("    ");
         sb.append(this.timestamp);
         sb.append(": ");
-        sb.append(roundUpToNDecimalPlaces(this.latitude, 6));
+        sb.append(dcu.roundUpToNDecimalPlaces(this.latitude, 6));
         sb.append(" / ");
-        sb.append(roundUpToNDecimalPlaces(this.longitude, 6));
+        sb.append(dcu.roundUpToNDecimalPlaces(this.longitude, 6));
         sb.append(" / elev.: ");
-        sb.append(roundUpToNDecimalPlaces(this.elevation, 1));
+        sb.append(dcu.roundUpToNDecimalPlaces(this.elevation, 1));
         sb.append(" / speed: ");
-        sb.append(roundUpToNDecimalPlaces(this.speed, 2));
+        sb.append(dcu.roundUpToNDecimalPlaces(this.speed, 2));
         sb.append(" [");
-        sb.append(roundUpToNDecimalPlaces(this.course, 2));
+        sb.append(dcu.roundUpToNDecimalPlaces(this.course, 2));
         sb.append("] / wind speed: ");
-        sb.append(roundUpToNDecimalPlaces(this.windSpeed, 2));
+        sb.append(dcu.roundUpToNDecimalPlaces(this.windSpeed, 2));
         sb.append(" - ");
-        sb.append(roundUpToNDecimalPlaces(this.maxWindSpeed, 2));
+        sb.append(dcu.roundUpToNDecimalPlaces(this.maxWindSpeed, 2));
         sb.append(" [");
-        sb.append(roundUpToNDecimalPlaces(this.windDirection, 2));
+        sb.append(dcu.roundUpToNDecimalPlaces(this.windDirection, 2));
         sb.append("]\n");
         return sb.toString();
     }

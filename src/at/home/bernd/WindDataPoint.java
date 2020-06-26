@@ -149,36 +149,24 @@ public class WindDataPoint
     }
     
     /**
-     * Returns vale rounded up to the given number of decimal places
-     * 
-     * @param value the original value
-     * @param n the number of decimal places
-     * @return the rounded number
-     */
-    private double roundUpToNDecimalPlaces(double value, int n)
-    {
-        BigDecimal bd = BigDecimal.valueOf(value);
-        bd = bd.setScale(1, RoundingMode.HALF_UP);
-        return bd.doubleValue();
-    }
-
-    /**
      * Returns a simple string representation of the wind data point
      */
     public String toString()
     {
+        DataConversionUtility dcu = DataConversionUtility.getInstance();
+
         StringBuilder sb = new StringBuilder();
         sb.append(this.timestamp);
         sb.append(": ");
-        sb.append(roundUpToNDecimalPlaces(this.windSpeed, 1));
+        sb.append(dcu.roundUpToNDecimalPlaces(this.windSpeed, 1));
         sb.append(" - ");
-        sb.append(roundUpToNDecimalPlaces(this.maxWindSpeed, 1));
+        sb.append(dcu.roundUpToNDecimalPlaces(this.maxWindSpeed, 1));
         sb.append("[");
         sb.append(this.direction);
         sb.append("] ");
-        sb.append(roundUpToNDecimalPlaces(this.temperature, 1));
+        sb.append(dcu.roundUpToNDecimalPlaces(this.temperature, 1));
         sb.append(" / ");
-        sb.append(roundUpToNDecimalPlaces(this.chill, 1));
+        sb.append(dcu.roundUpToNDecimalPlaces(this.chill, 1));
         return sb.toString();
     }
 }

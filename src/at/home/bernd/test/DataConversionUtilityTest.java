@@ -2,6 +2,8 @@ package at.home.bernd.test;
 
 import java.util.Date;
 
+import com.sun.tools.classfile.StackMapTable_attribute.same_frame;
+
 import at.home.bernd.DataConversionUtility;
 import at.home.bernd.TrackDataManager;
 import at.home.bernd.WeatherDataManager;
@@ -11,6 +13,17 @@ import at.home.bernd.WeatherDataManager;
  */
 public class DataConversionUtilityTest
 {
+    /**
+     * Direction abbreviations (German)
+     */
+    private static final String[] DIRECTIONS_GERMAN =  { "N", "NNO", "NO", "ONO", "O", "OSO", "SO", "SSO", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW" };
+
+    /**
+     * Direction abbreviations (English)
+     */
+    private static final String[] DIRECTIONS_ENGLISH = { "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW" };
+
+    
     /**
      * Tests parsing of date strings
      */
@@ -54,17 +67,42 @@ public class DataConversionUtilityTest
     {
         DataConversionUtility dcu = DataConversionUtility.getInstance();
         
-        String[] germanTerms =  { "N", "NNO", "NO", "ONO", "O", "OSO", "SO", "SSO", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW" };
-        String[] englishTerms = { "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW" };
-
-        for (String germanTerm: germanTerms)
+        for (String germanTerm: DIRECTIONS_GERMAN)
         {
             System.out.println(germanTerm + " = " + dcu.mapDirection(germanTerm));
         }
         System.out.println();
-        for (String englishTerm: englishTerms)
+        for (String englishTerm: DIRECTIONS_ENGLISH)
         {
             System.out.println(englishTerm + " = " + dcu.mapDirection(englishTerm));
+        }
+    }
+    
+    private void testRelativeCourse()
+    {
+        DataConversionUtility dcu = DataConversionUtility.getInstance();
+
+        for (String windDirString : DIRECTIONS_ENGLISH)
+        {
+            double windDirection = dcu.mapDirection(windDirString);
+            for (String courseString : DIRECTIONS_ENGLISH)
+            {
+                double course = dcu.mapDirection(courseString);
+                double relCourse = dcu.relativeCourse(windDirection, course);
+                StringBuilder sb = new StringBuilder();
+                sb.append("Wind ");
+                sb.append(windDirString);
+                sb.append(" (");
+                sb.append(windDirection);
+                sb.append("), course ");
+                sb.append(courseString);
+                sb.append(" (");
+                sb.append(course);
+                sb.append("), relative course = ");
+                sb.append(relCourse);
+                System.out.println(sb.toString());
+            }
+            System.out.println();
         }
     }
     
@@ -74,8 +112,9 @@ public class DataConversionUtilityTest
     public static void main(String[] args)
     {
         DataConversionUtilityTest dataConversionUtilityTest = new DataConversionUtilityTest();
-        dataConversionUtilityTest.testParseDateString();
-        dataConversionUtilityTest.testParseTemperatureString();
-        dataConversionUtilityTest.testMapDirection();
+        // dataConversionUtilityTest.testParseDateString();
+        // dataConversionUtilityTest.testParseTemperatureString();
+        // dataConversionUtilityTest.testMapDirection();
+        dataConversionUtilityTest.testRelativeCourse();
     }
 }

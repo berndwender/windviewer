@@ -221,6 +221,7 @@ public class TrackDataManager
      */
     public List<Number> makeYData(TrackSegment trackSegment, TRACK_DATA_TYPE dataType)
     {
+        DataConversionUtility dcu = DataConversionUtility.getInstance();
         List<Number> yData = new ArrayList<Number>();
         List<TrackPoint> trackPoints = trackSegment.getTrackPoints();
         for (int i = 0; i < trackPoints.size(); i++)
@@ -244,6 +245,12 @@ public class TrackDataManager
             else if (dataType == TRACK_DATA_TYPE.windDirection)
             {
                 yData.add(trackPoints.get(i).getWindDirection());
+            }
+            else if (dataType == TRACK_DATA_TYPE.relCourse)
+            {
+                double windDirection = trackPoints.get(i).getWindDirection();
+                double course = trackPoints.get(i).getCourse();
+                yData.add(dcu.relativeCourse(windDirection, course));
             }
         }
         return yData;
@@ -299,17 +306,14 @@ public class TrackDataManager
         List<Date> xData = makeXData(trackSegment);
         courseChartBuilder.width(1600);
         courseChartBuilder.height(400);
-        courseChartBuilder.title("Course");
-        courseChartBuilder.xAxisTitle("time");
-        courseChartBuilder.yAxisTitle("Direction");
+        courseChartBuilder.title("Rel. Course");
+        courseChartBuilder.xAxisTitle("Time");
+        courseChartBuilder.yAxisTitle("Rel. Direction");
         
         XYChart courseChart = courseChartBuilder.build();
-        List<Number> courseData = makeYData(trackSegment, TRACK_DATA_TYPE.course);
-        courseChart.addSeries("Course", xData, courseData);
-        
-        List<Number> windDirectionData = makeYData(trackSegment, TRACK_DATA_TYPE.windDirection);
-        courseChart.addSeries("Wind Direction", xData, windDirectionData);
-        
+        List<Number> courseData = makeYData(trackSegment, TRACK_DATA_TYPE.relCourse);
+        courseChart.addSeries("Rel. Course", xData, courseData);
+       
         XYStyler courseChartStyler = courseChart.getStyler();
         courseChartStyler.setLegendPosition(LegendPosition.OutsideS);
         courseChartStyler.setHasAnnotations(false);
