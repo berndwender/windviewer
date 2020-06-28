@@ -264,9 +264,11 @@ public class TrackDataManager
     public void makeCharts(TrackSegment trackSegment)
     {
         makeSpeedChart(trackSegment);
-        makeCourseChart(trackSegment);
-        makeWindChart(trackSegment);
-        // makeWindDirectionChart(trackSegment);
+        makeCourseChart(trackSegment, trackSegment.isWindInfoAvailable());
+        if (trackSegment.isWindInfoAvailable())
+        {
+            makeWindChart(trackSegment);
+        }
     }
     
     /**
@@ -299,21 +301,24 @@ public class TrackDataManager
      * Makes a course chart.
      * 
      * @param trackSegment the track segment
+     * @param relative     the course relative to the wind
      */
-    public void makeCourseChart(TrackSegment trackSegment)
+    public void makeCourseChart(TrackSegment trackSegment, boolean relative)
     {
         XYChartBuilder courseChartBuilder = new XYChartBuilder();
         List<Date> xData = makeXData(trackSegment);
         courseChartBuilder.width(1600);
         courseChartBuilder.height(400);
-        courseChartBuilder.title("Rel. Course");
+        String relPrefix = relative ? "Rel. " : "";
+        courseChartBuilder.title(relPrefix + "Course");
         courseChartBuilder.xAxisTitle("Time");
-        courseChartBuilder.yAxisTitle("Rel. Direction");
+        courseChartBuilder.yAxisTitle(relPrefix + "Direction");
         
         XYChart courseChart = courseChartBuilder.build();
-        List<Number> courseData = makeYData(trackSegment, TRACK_DATA_TYPE.relCourse);
-        courseChart.addSeries("Rel. Course", xData, courseData);
-       
+        TRACK_DATA_TYPE trackDataType = relative ? TRACK_DATA_TYPE.relCourse : TRACK_DATA_TYPE.course;
+        List<Number> courseData = makeYData(trackSegment, trackDataType);
+        courseChart.addSeries(relPrefix + "Course", xData, courseData);
+
         XYStyler courseChartStyler = courseChart.getStyler();
         courseChartStyler.setLegendPosition(LegendPosition.OutsideS);
         courseChartStyler.setHasAnnotations(false);
@@ -450,6 +455,11 @@ public class TrackDataManager
         {
             Date[] timestamps = trackSegment.getTimestamps();
             List<WindDataPoint> extractedWindData = weatherDataManager.getWindData(windData, timestamps[0], timestamps[timestamps.length - 1]);
+            // insufficient wind data
+            if (extractedWindData.size() < 3)
+            {
+                continue;
+            }
             List<WindDataPoint> interpolatedWindData = weatherDataManager.interpolateWindData(extractedWindData, timestamps);
             addWindDataToTrackSegement(trackSegment, interpolatedWindData);
         }
@@ -463,6 +473,7 @@ public class TrackDataManager
      */
     public void addWindDataToTrackSegement(TrackSegment trackSegment, List<WindDataPoint> windData)
     {
+        boolean windInfoAvailable = false;
         List<TrackPoint> trackPoints = trackSegment.getTrackPoints();
         Iterator<WindDataPoint> it = windData.iterator();
         for (TrackPoint trackPoint : trackPoints)
@@ -473,8 +484,13 @@ public class TrackDataManager
                 trackPoint.setWindDirection(windDataPoint.getDirection());
                 trackPoint.setWindSpeed(windDataPoint.getWindSpeed());
                 trackPoint.setMaxWindSpeed(windDataPoint.getMaxWindSpeed());
+                if (! windInfoAvailable)
+                {
+                    windInfoAvailable = true;
+                }
             }
         }
+        trackSegment.setWindInfoAvailable(windInfoAvailable);
     }
     
     /**

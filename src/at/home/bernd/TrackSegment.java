@@ -13,6 +13,27 @@ public class TrackSegment
      * The list of track points
      */
     private List<TrackPoint> trackPoints = new ArrayList<TrackPoint>();
+    
+    /**
+     * This flag indicates if wind info is available for this track segment
+     */
+    private boolean windInfoAvailable = false;
+
+    /**
+     * @return the windInfoAvailable
+     */
+    public boolean isWindInfoAvailable()
+    {
+        return windInfoAvailable;
+    }
+
+    /**
+     * @param windInfoAvailable the windInfoAvailable to set
+     */
+    public void setWindInfoAvailable(boolean windInfoAvailable)
+    {
+        this.windInfoAvailable = windInfoAvailable;
+    }
 
     public void addTrackPoint(TrackPoint trackPoint)
     {
