@@ -94,6 +94,7 @@ public class TrackSegment
     {
         List<TrackSegment> extractedTrackSegments = new ArrayList<TrackSegment>();
         TrackSegment trackSegment = new TrackSegment();
+        trackSegment.setWindInfoAvailable(this.isWindInfoAvailable());
         for (TrackPoint trackPoint : this.trackPoints)
         {
             double speed = trackPoint.getSpeed();
@@ -107,10 +108,12 @@ public class TrackSegment
                 {
                     extractedTrackSegments.add(trackSegment);
                     trackSegment = new TrackSegment();
+                    trackSegment.setWindInfoAvailable(this.isWindInfoAvailable());
                 }
                 else if (trackSegment.size() > 0)
                 {
                     trackSegment = new TrackSegment();
+                    trackSegment.setWindInfoAvailable(this.isWindInfoAvailable());
                 }
             }
         }
